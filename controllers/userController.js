@@ -66,10 +66,11 @@ const createUser = async (req, res) => {
 // Get all users
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('username');
+    const usernames = users.map(user => user.username);
     res.json({
       success: true,
-      users
+      usernames
     });
   } catch (error) {
     res.status(500).json({
@@ -107,7 +108,7 @@ const getUserByUsername = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { username } = req.params;
-    const updates = req.body;
+    const updates = { ...req.body }; // Create a copy to safely modify
 
     // Check if user exists
     const user = await User.findOne({ username });
@@ -128,7 +129,24 @@ const updateUser = async (req, res) => {
 
     // Prevent non-admins from updating admin status
     if (!req.user.isAdmin && updates.hasOwnProperty('isAdmin')) {
-      delete updates.isAdmin;
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only admins can modify admin status.'
+      });
+    }
+
+    // Restrict updates to only username, email, and password for non-admins
+    if (!req.user.isAdmin) {
+      const allowedFields = ['username', 'email', 'password'];
+      const updateKeys = Object.keys(updates);
+      const invalidFields = updateKeys.filter(key => !allowedFields.includes(key));
+      
+      if (invalidFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `You can only update: ${allowedFields.join(', ')}`
+        });
+      }
     }
 
     // Update user
