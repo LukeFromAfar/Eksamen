@@ -20,6 +20,9 @@ importers:
       express:
         specifier: ^5.1.0
         version: 5.1.0
+      is-email:
+        specifier: ^1.0.2
+        version: 1.0.2
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.2
@@ -255,6 +258,9 @@ packages:
   is-binary-path@2.1.0:
     resolution: {integrity: sha512-ZMERYes6pDydyuGidse7OsHxtbI7WVeUEozgR/g7rd0xUimYNlvZRE/K2MgZTjWy725IfelLeVcEM97mmtRGXw==}
     engines: {node: '>=8'}
+
+  is-email@1.0.2:
+    resolution: {integrity: sha512-UojUgD2EhDTBQ2SGKwrK9edce5phRzgLsP+V5+Uu2Swi+uvjVXgH3zduM3HhT9iaC/9Kq19/TYUbP0jPoi6ioA==}
 
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
@@ -819,6 +825,8 @@ snapshots:
   is-binary-path@2.1.0:
     dependencies:
       binary-extensions: 2.3.0
+
+  is-email@1.0.2: {}
 
   is-extglob@2.1.1: {}
 
