@@ -2,61 +2,6 @@ const User = require('../models/UserSchema');
 const jwtUtils = require('../utils/jwtUtils');
 
 const authController = {
-  register: async (req, res) => {
-    try {
-      const { username, email, password } = req.body;
-
-      // Validate required fields
-      if (!username || !email || !password) {
-        return res.status(400).json({
-          success: false,
-          message: 'Username, email, and password are required'
-        });
-      }
-
-      // Check if user already exists
-      const existingUser = await User.findOne({
-        $or: [{ email }, { username }]
-      });
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: 'User with this email or username already exists'
-        });
-      }
-
-      // Create new user
-      const user = new User({ username, email, password });
-      await user.save();
-
-      // Generate token
-      const token = jwtUtils.generateToken(user);
-      
-      // Set secure cookie
-      jwtUtils.setTokenCookie(res, token);
-
-      res.status(201).json({
-        success: true,
-        message: 'User registered successfully',
-        token, // For Postman testing
-        user: {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          isAdmin: user.isAdmin,
-          createdAt: user.createdAt
-        }
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-  },
-
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -96,7 +41,7 @@ const authController = {
       res.json({
         success: true,
         message: 'Login successful',
-        token, // For Postman testing
+        // token, // Available via HTTP-only cookie for security
         user: {
           id: user._id,
           username: user.username,
@@ -115,6 +60,11 @@ const authController = {
   },
 
   logout: (req, res) => {
+    // If user is authenticated, blacklist their token
+    if (req.token) {
+      jwtUtils.blacklistToken(req.token);
+    }
+    
     jwtUtils.clearTokenCookie(res);
     res.json({
       success: true,
@@ -133,6 +83,55 @@ const authController = {
         createdAt: req.user.createdAt
       }
     });
+  },
+
+  refreshToken: async (req, res) => {
+    try {
+      const token = req.cookies.token;
+      
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'No refresh token provided'
+        });
+      }
+
+      // Verify the token
+      const decoded = jwtUtils.verifyToken(token);
+      
+      // Find user
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Generate new token
+      const newToken = jwtUtils.generateToken(user);
+      
+      // Set new secure cookie
+      jwtUtils.setTokenCookie(res, newToken);
+
+      res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          isAdmin: user.isAdmin,
+          createdAt: user.createdAt
+        }
+      });
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      res.status(401).json({
+        success: false,
+        message: 'Invalid refresh token'
+      });
+    }
   }
 };
 

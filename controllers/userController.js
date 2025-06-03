@@ -46,7 +46,7 @@ const createUser = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      token,
+      // token, // Available via HTTP-only cookie for security
       user: {
         id: user._id,
         username: user.username,
@@ -194,10 +194,16 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// Get users (example implementation)
+const getUsers = (req, res) => {
+  res.json({ message: 'Users endpoint' });
+};
+
 module.exports = {
   createUser,
   getAllUsers,
   getUserByUsername,
   updateUser,
-  deleteUser
+  deleteUser,
+  getUsers
 };
