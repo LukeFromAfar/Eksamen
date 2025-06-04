@@ -75,17 +75,21 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ### Authentication
 
 - `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `GET /api/auth/check` - Check current authentication
+- `POST /api/auth/logout` - Logout user (requires authentication)
 - `POST /api/auth/refresh-token` - Refresh JWT token
+- `GET /api/auth/check` - Check current authentication status (requires authentication)
 
-### Users
+### User Management
 
 - `POST /api/users` - Create a new user
 - `GET /api/users` - Get all users (requires authentication)
-- `GET /api/users/:username` - Get user by username (requires authentication)
 - `PUT /api/users/:username` - Update user (requires authentication, must be same user or admin)
-- `DELETE /api/users/:username` - Delete user (admin only)
+- `DELETE /api/users/:username` - Delete user (requires authentication, admin only)
+
+### Alternative User Endpoints
+
+- `GET /api/:username` - Get user by username (requires authentication)
+- `POST /api/createUser` - Create a new user (alternative endpoint)
 
 ## Security
 
