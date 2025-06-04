@@ -9,7 +9,7 @@ const helmetMiddleware = require('./middleware/helmetMiddleware');
 const setupRateLimiting = require('./middleware/rateLimitMiddleware');
 
 // API routes
-const apiRoutes = require('./routes/apiRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 // Middleware imports
 const { jsonParsingErrorHandler, globalErrorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
@@ -43,7 +43,7 @@ app.use(cookieParser()); // Add cookie parser for JWT cookies
 app.use(jsonParsingErrorHandler);
 
 // Routes
-app.use('/api', apiRoutes);
+app.use('/api', userRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

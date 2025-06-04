@@ -93,7 +93,7 @@ The API implements multiple layers of security:
 ├── models/                # Mongoose models
 │   └── UserSchema.js
 ├── routes/                # API routes
-│   └── apiRoutes.js
+│   └── userRoutes.js
 ├── .env                   # Environment variables (not in git)
 ├── package.json           # Project dependencies
 └── server.js              # Application entry point
