@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const apiRoutes = require('./routes/apiRoutes'); // Add the new routes file
 
 // Middleware imports
 const { jsonParsingErrorHandler, globalErrorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
@@ -57,6 +58,7 @@ app.use(jsonParsingErrorHandler);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api', apiRoutes); // Register the new routes directly under /api
 
 // Basic route
 app.get('/', (req, res) => {
@@ -103,12 +105,3 @@ app.use(globalErrorHandler);
 
 // 404 handler for undefined routes
 app.use(notFoundHandler);
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  mongoose.connection.close(() => {
-    console.log('MongoDB connection closed.');
-    process.exit(0);
-  });
-});
