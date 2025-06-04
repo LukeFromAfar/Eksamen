@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const argon2 = require('argon2');
 const isEmail = require('is-email');
 
 const userSchema = new mongoose.Schema({
@@ -23,41 +22,11 @@ const userSchema = new mongoose.Schema({
       message: 'Please provide a valid email address'
     }
   },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters']
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false
-  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 }, { timestamps: true });
-
-// Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    this.password = await argon2.hash(this.password);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await argon2.verify(this.password, candidatePassword);
-  } catch (error) {
-    throw error;
-  }
-};
 
 const User = mongoose.model('User', userSchema);
 

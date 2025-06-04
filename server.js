@@ -1,13 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
+// Import custom security middleware
+const helmetMiddleware = require('./middleware/helmetMiddleware');
+const setupRateLimiting = require('./middleware/rateLimitMiddleware');
+
+// API routes
+const apiRoutes = require('./routes/apiRoutes');
 
 // Middleware imports
 const { jsonParsingErrorHandler, globalErrorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
@@ -15,32 +17,18 @@ const { jsonParsingErrorHandler, globalErrorHandler, notFoundHandler } = require
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Trust proxy if behind reverse proxy (common in production)
 app.set('trust proxy', 1);
 
-// Security Headers with Helmet
-app.use(helmet());
+// Apply security middleware
+app.use(helmetMiddleware);
+setupRateLimiting(app); // Apply rate limiting
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use(limiter);
-
-// CORS configuration for Postman and potential frontend
+// CORS configuration
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsing middleware
@@ -49,48 +37,37 @@ app.use(express.json({
   type: ['application/json', 'text/plain']
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(cookieParser());
+app.use(cookieParser()); // Add cookie parser for JWT cookies
 
 // Add JSON parsing error handling
 app.use(jsonParsingErrorHandler);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api', apiRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Server is running!',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    environment: process.env.NODE_ENV
   });
 });
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
   // Security and performance options
-  maxPoolSize: 10, // Maintain up to 10 socket connections
-  serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
-  socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-  bufferCommands: false // Disable mongoose buffering
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
+  bufferCommands: false
 })
   .then(() => {
     console.log('Connected to MongoDB');
     
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
     });
   })
   .catch((error) => {
@@ -103,12 +80,3 @@ app.use(globalErrorHandler);
 
 // 404 handler for undefined routes
 app.use(notFoundHandler);
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  mongoose.connection.close(() => {
-    console.log('MongoDB connection closed.');
-    process.exit(0);
-  });
-});

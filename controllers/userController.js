@@ -1,209 +1,199 @@
-const mongoose = require('mongoose');
 const User = require('../models/UserSchema');
-const jwtUtils = require('../utils/jwtUtils');
+const isEmail = require('is-email');
 
-// Create user (same as register but separate endpoint)
-const createUser = async (req, res) => {
-  try {
-    // Validate request body exists
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Request body is required'
-      });
-    }
-
-    const { username, email, password } = req.body;
-
-    // Validate required fields
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username, email, and password are required'
-      });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email or username already exists'
-      });
-    }
-
-    // Create new user
-    const user = new User({ username, email, password });
-    await user.save();
-
-    // Generate token
-    const token = jwtUtils.generateToken(user);
-    jwtUtils.setTokenCookie(res, token);
-
-    res.status(201).json({
-      success: true,
-      message: 'User created successfully',
-      // token, // Available via HTTP-only cookie for security
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        isAdmin: user.isAdmin
-      }
-    });
-  } catch (error) {
-    console.error('Create user error:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// Get all users
-const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find().select('username');
-    const usernames = users.map(user => user.username);
-    res.json({
-      success: true,
-      usernames
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching users'
-    });
-  }
-};
-
-// Get user by username
-const getUserByUsername = async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.params.username }).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      user
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching user'
-    });
-  }
-};
-
-// Update user
-const updateUser = async (req, res) => {
-  try {
-    const { username } = req.params;
-    const updates = { ...req.body }; // Create a copy to safely modify
-
-    // Check if user exists
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // Check if user can update (admin or self)
-    if (!req.user.isAdmin && req.user.username !== username) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. You can only update your own profile.'
-      });
-    }
-
-    // Prevent non-admins from updating admin status
-    if (!req.user.isAdmin && updates.hasOwnProperty('isAdmin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Only admins can modify admin status.'
-      });
-    }
-
-    // Restrict updates to only username, email, and password for non-admins
-    if (!req.user.isAdmin) {
-      const allowedFields = ['username', 'email', 'password'];
-      const updateKeys = Object.keys(updates);
-      const invalidFields = updateKeys.filter(key => !allowedFields.includes(key));
-      
-      if (invalidFields.length > 0) {
+const userController = {
+  createUser: async (req, res) => {
+    try {
+      // Validate request body exists
+      if (!req.body || Object.keys(req.body).length === 0) {
         return res.status(400).json({
           success: false,
-          message: `You can only update: ${allowedFields.join(', ')}`
+          message: 'Request body is required'
         });
       }
-    }
 
-    // Update user
-    const updatedUser = await User.findOneAndUpdate(
-      { username },
-      updates,
-      { new: true, runValidators: true }
-    ).select('-password');
+      const { username, email } = req.body;
 
-    res.json({
-      success: true,
-      message: 'User updated successfully',
-      user: updatedUser
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+      // Validate required fields
+      if (!username || !email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username and email are required'
+        });
+      }
 
-// Delete user
-const deleteUser = async (req, res) => {
-  try {
-    const { username } = req.params;
+      // Sanitize inputs
+      const sanitizedUsername = username.trim();
+      const sanitizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOneAndDelete({ username });
-    if (!user) {
-      return res.status(404).json({
+      // Additional validation
+      if (sanitizedUsername.length < 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username must be at least 3 characters'
+        });
+      }
+
+      if (!isEmail(sanitizedEmail)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format'
+        });
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({
+        $or: [{ email: sanitizedEmail }, { username: sanitizedUsername }]
+      });
+
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'User with this email or username already exists'
+        });
+      }
+
+      // Create new user
+      const user = new User({ 
+        username: sanitizedUsername, 
+        email: sanitizedEmail 
+      });
+      
+      await user.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'User created successfully',
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt
+        }
+      });
+    } catch (error) {
+      console.error('Create user error:', error);
+      res.status(400).json({
         success: false,
-        message: 'User not found'
+        message: error.message
       });
     }
+  },
 
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting user'
-    });
+  getUserByUsername: async (req, res) => {
+    try {
+      const user = await User.findOne({ username: req.params.username });
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching user'
+      });
+    }
+  },
+  
+  getAllUsers: async (req, res) => {
+    try {
+      const users = await User.find();
+      
+      res.json({
+        success: true,
+        users: users.map(user => ({
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching users'
+      });
+    }
+  },
+  
+  updateUser: async (req, res) => {
+    try {
+      const { username, email } = req.body;
+      const updatedFields = {};
+
+      if (username) {
+        updatedFields.username = username;
+      }
+
+      if (email) {
+        updatedFields.email = email;
+      }
+
+      const user = await User.findByIdAndUpdate(req.params.id, updatedFields, { new: true });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'User updated successfully',
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: 'Error updating user'
+      });
+    }
+  },
+  
+  deleteUser: async (req, res) => {
+    try {
+      const user = await User.findByIdAndDelete(req.params.id);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'User deleted successfully'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting user'
+      });
+    }
   }
 };
 
-// Get users (example implementation)
-const getUsers = (req, res) => {
-  res.json({ message: 'Users endpoint' });
-};
-
-module.exports = {
-  createUser,
-  getAllUsers,
-  getUserByUsername,
-  updateUser,
-  deleteUser,
-  getUsers
-};
+module.exports = userController;

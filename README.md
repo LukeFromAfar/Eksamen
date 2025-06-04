@@ -1,6 +1,6 @@
 # Eksamen API
 
-A secure RESTful API built with Express.js and MongoDB featuring JWT authentication, user management, and robust security measures.
+A simple RESTful API built with Express.js and MongoDB for user management.
 
 ## Table of Contents
 
@@ -14,24 +14,17 @@ A secure RESTful API built with Express.js and MongoDB featuring JWT authenticat
 
 ## Features
 
-- User authentication with JWT
-- User management (CRUD operations)
-- Session management with token refreshing
-- Role-based access control
-- Rate limiting
-- Secure cookies
-- Input validation
-- Error handling
+- User management (create, retrieve, update, delete users)
+- Input validation and sanitization
+- Error handling with consistent responses
 - Security headers with Helmet
+- Rate limiting to prevent abuse
 
 ## Technologies
 
 - Node.js
 - Express.js
 - MongoDB with Mongoose
-- JSON Web Tokens (JWT)
-- Argon2 for password hashing
-- Express Validator
 - Helmet for security headers
 - CORS protection
 - Rate limiting
@@ -64,78 +57,47 @@ Create a `.env` file in the project root with the following variables:
 ```
 PORT=4000
 MONGODB_URI=mongodb://localhost:27017/your_database_name
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRES_IN=7d
 NODE_ENV=development
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
 ## API Endpoints
 
-### Authentication
-
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `GET /api/auth/check` - Check current authentication
-- `POST /api/auth/refresh-token` - Refresh JWT token
-
 ### Users
 
-- `POST /api/users` - Create a new user
-- `GET /api/users` - Get all users (requires authentication)
-- `GET /api/users/:username` - Get user by username (requires authentication)
-- `PUT /api/users/:username` - Update user (requires authentication, must be same user or admin)
-- `DELETE /api/users/:username` - Delete user (admin only)
+- `POST /api/createUser` - Create a new user (requires username and email)
+- `GET /api/:username` - Get user by username
+- `GET /api/users` - Get all users
+- `PUT /api/users/:id` - Update a user
+- `DELETE /api/users/:id` - Delete a user
 
 ## Security
 
 The API implements multiple layers of security:
 
-- **Password Hashing**: Uses Argon2 (winner of the Password Hashing Competition)
-- **JWT Authentication**: Secure, stateless authentication
-- **HTTP-Only Cookies**: Prevents XSS attacks accessing tokens
-- **Input Validation**: All inputs are validated
+- **Input Validation**: All user input is validated and sanitized
 - **Rate Limiting**: Prevents brute force attacks
 - **Helmet**: Sets secure HTTP headers
 - **CORS Protection**: Restricts API access to allowed origins
-- **Error Handling**: Sanitized error responses
+- **Error Handling**: Sanitized error responses that don't expose sensitive details
 
 ## Project Structure
 
 ```
 ├── controllers/           # Request handlers
-│   ├── authController.js
 │   └── userController.js
 ├── middleware/            # Express middleware
-│   ├── authMiddleware.js
-│   ├── errorMiddleware.js
-│   ├── helmetMiddleware.js
-│   ├── rateLimitMiddleware.js
-│   └── validationMiddleware.js
+│   ├── errorMiddleware.js # Error handling
+│   ├── helmetMiddleware.js # Security headers
+│   └── rateLimitMiddleware.js # Rate limiting
 ├── models/                # Mongoose models
 │   └── UserSchema.js
 ├── routes/                # API routes
-│   ├── authRoutes.js
-│   └── userRoutes.js
-├── utils/                 # Utility functions
-│   └── jwtUtils.js
+│   └── apiRoutes.js
 ├── .env                   # Environment variables (not in git)
-├── .env.example           # Example environment variables
-├── .gitignore             # Git ignore file
 ├── package.json           # Project dependencies
-├── pnpm-workspace.yaml    # PNPM workspace config
 └── server.js              # Application entry point
 ```
-
-## Running in Production
-
-For production deployment:
-
-1. Set `NODE_ENV=production` in your environment
-2. Use a process manager like PM2
-3. Set up proper MongoDB security
-4. Use HTTPS in production
-5. Set stronger rate limits
 
 ## Error Handling
 
@@ -144,8 +106,7 @@ The API provides consistent error responses:
 ```json
 {
   "success": false,
-  "message": "Error message",
-  "errors": [...] // Optional validation errors
+  "message": "Error message"
 }
 ```
 
